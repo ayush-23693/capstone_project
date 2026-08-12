@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+
+  - name: bronze
+    database: CT_AYUSH_YADAV_DB
+    schema: EXTERNAL
+
+    tables:
+      - name: campaign_data
+        identifier: ext_campaign_data
+      - name: customer_data
+        identifier: ext_customer_data
+      - name: product_data
+        identifier: ext_product_data
+      - name: orders_data
+        identifier: ext_orders_data
+      - name: employee_data
+        identifier: ext_employee_data
+      - name: store_data
+        identifier: ext_store_data
+      - name: supplier_data
+        identifier: ext_supplier_data

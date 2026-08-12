@@ -37,4 +37,14 @@ clean-targets:         # directories to be removed by `dbt clean`
 
 models:
   capstone:
+
+    staging:
+      bronze:
+        +schema: BRONZE
+        +materialized: incremental
+
+snapshots:
+  capstone:
+    +target_schema: SILVER
+
     
