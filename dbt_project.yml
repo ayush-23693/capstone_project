@@ -43,8 +43,11 @@ models:
         +schema: BRONZE
         +materialized: incremental
 
+    silver:
+      +schema: SILVER
+
 snapshots:
   capstone:
-    +target_schema: SILVER
+    +target_schema: SNAPSHOTS
 
     
