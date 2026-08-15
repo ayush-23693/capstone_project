@@ -1,0 +1,11 @@
+packages:
+  - name: dbt_utils
+    package: dbt-labs/dbt_utils
+    version: 1.4.1
+  - name: codegen
+    package: dbt-labs/codegen
+    version: 0.14.1
+  - name: elementary
+    package: elementary-data/elementary
+    version: 0.25.1
+sha1_hash: 24b79849d2a21ed1df167c5042db8186f0a710d0
