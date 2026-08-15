@@ -14,9 +14,8 @@ WITH source_data AS (
 
 ),
 
-/* 
-   FLATTEN CAMPAIGNS ARRAY
-    */
+
+--   FLATTEN CAMPAIGNS ARRAY
 
 flattened AS (
 
@@ -43,17 +42,17 @@ flattened AS (
 
 ),
 
-/* 
-    EXTRACT + CLEAN + STANDARDIZE
-    */
+
+--    EXTRACT + CLEAN + STANDARDIZE
+
 
 cleaned AS (
 
     SELECT
 
-        /* 
-           Audit  metadata
-            */
+        
+        --   Audit  metadata
+            
 
         SOURCE_FILE,
         ROW_NUMBER,
@@ -61,18 +60,18 @@ cleaned AS (
         BATCH_ID,
         SNAPSHOT_DATE,
 
-        /* 
-           Campaign ID
-            */
+        
+        --   Campaign ID
+            
 
         NULLIF(
             TRIM(CAMPAIGN_DATA:campaign_id::STRING),
             ''
         ) AS CAMPAIGN_ID,
 
-        /* 
-           Campaign descriptive fields
-            */
+        
+        --   Campaign descriptive fields
+            
 
         INITCAP(
             TRIM(CAMPAIGN_DATA:campaign_name::STRING)
@@ -93,11 +92,11 @@ cleaned AS (
 
         INITCAP(
             TRIM(CAMPAIGN_DATA:target_audience::STRING)
-        ) AS TARGET_AUDIENCE,
+        ) AS TARGET_AUDIENCE_SEGMENT,
 
-        /* 
-           Campaign dates
-            */
+        
+        --   Campaign dates
+            
 
         TRY_TO_TIMESTAMP_NTZ(
             NULLIF(
@@ -120,9 +119,9 @@ cleaned AS (
             )
         ) AS LAST_MODIFIED_DATE,
 
-        /* 
-           Monetary values
-            */
+        
+        --   Monetary values
+            
 
         TRY_TO_DECIMAL(
             NULLIF(
@@ -175,11 +174,9 @@ cleaned AS (
             2
         ) AS TOTAL_REVENUE,
 
-        /* 
-           ROI (Numeric value only)
-           haven't performed ROI
-           validation here.
-            */
+        
+        -- ROI (Numeric value only) haven't performed ROI validation here.
+
 
         TRY_TO_DECIMAL(
             NULLIF(
@@ -194,18 +191,18 @@ cleaned AS (
 
 ),
 
-/* 
-   CAMPAIGN-SPECIFIC DERIVED ATTRIBUTES
-    */
+
+--   CAMPAIGN-SPECIFIC DERIVED ATTRIBUTES
+
 
 derived AS (
 
     SELECT
         c.*,
 
-        /* 
-           Campaign duration
-            */
+        
+        --   Campaign duration
+        
 
         CASE
             WHEN c.START_DATE IS NOT NULL
@@ -222,10 +219,9 @@ derived AS (
 
 ),
 
-/* 
-   4. DEDUPLICATION
-   Natural key = CAMPAIGN_ID
-    */
+
+   -- DEDUPLICATION
+
 
 deduplicated AS (
 
@@ -248,9 +244,8 @@ deduplicated AS (
 
 )
 
-/* 
-   FINAL SILVER CAMPAIGN TABLE
-    */
+
+--   FINAL SILVER CAMPAIGN TABLE
 
 SELECT
     CAMPAIGN_ID,
@@ -259,7 +254,7 @@ SELECT
     CAMPAIGN_TYPE,
     CHANNEL,
     DESCRIPTION,
-    TARGET_AUDIENCE,
+    TARGET_AUDIENCE_SEGMENT,
 
     START_DATE,
     END_DATE,
