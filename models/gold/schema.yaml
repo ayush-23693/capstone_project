@@ -81,3 +81,22 @@ models:
         tests:
           - not_null
           - unique
+
+  
+
+
+  - name: dim_marketing_campaign
+    description: "Marketing campaign dimension. One row per campaign."
+
+    columns:
+      - name: campaign_key
+        description: "Surrogate key"
+        tests:
+          - not_null
+          - unique
+
+      - name: campaign_id
+        description: "Natural key"
+        tests:
+          - not_null
+          - unique
