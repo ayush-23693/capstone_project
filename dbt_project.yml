@@ -46,6 +46,9 @@ models:
     silver:
       +schema: SILVER
 
+    gold:
+      +schema: GOLD
+
 snapshots:
   capstone:
     +target_schema: SNAPSHOTS
