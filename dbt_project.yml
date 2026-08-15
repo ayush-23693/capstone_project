@@ -47,7 +47,10 @@ models:
       +schema: SILVER
 
     gold:
-      +schema: GOLD
+      facts:
+        +schema: GOLD
+      dimensions:
+        +schema: GOLD
 
 snapshots:
   capstone:

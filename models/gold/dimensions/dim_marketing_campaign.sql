@@ -11,4 +11,5 @@ SELECT
     ROI,
     START_DATE,
     END_DATE,
+    TOTAL_COST
 FROM {{ ref('silver_marketing_campaign') }}
