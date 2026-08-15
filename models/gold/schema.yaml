@@ -100,3 +100,29 @@ models:
         tests:
           - not_null
           - unique
+
+
+
+  - name: dim_customer
+    description: "Customer dimension. One row per customer."
+
+    columns:
+      - name: customer_key
+        description: "Surrogate key"
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_id
+        description: "Natural key"
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_segment
+        tests:
+          - accepted_values:
+              values:
+                - Young
+                - Middle-aged
+                - Senior
