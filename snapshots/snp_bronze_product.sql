@@ -10,36 +10,34 @@
     )
 }}
 
-WITH latest_file AS (
+WITH unwrapped AS (
 
     SELECT
-        MAX(SOURCE_FILE) AS SOURCE_FILE
-    FROM {{ ref('stg_bronze__product_data') }}
 
-),
-
-unwrapped AS (
-
-    SELECT
         prod.value AS product_json,
+
         b.LOADED_AT,
         b.SOURCE_FILE,
+        b.ROW_NUMBER,
         b.BATCH_ID
 
     FROM {{ ref('stg_bronze__product_data') }} b
-    CROSS JOIN latest_file lf
-    CROSS JOIN LATERAL FLATTEN(
-        input => b.RAW_DATA:products_data
-    ) prod
 
-    WHERE b.SOURCE_FILE = lf.SOURCE_FILE
+    CROSS JOIN LATERAL FLATTEN(
+        INPUT => b.RAW_DATA:products_data
+    ) prod
 
 ),
 
 prepared AS (
 
     SELECT
-        product_json:product_id::STRING AS product_id,
+
+        UPPER(
+            TRIM(
+                product_json:product_id::STRING
+            )
+        ) AS product_id,
 
         TRY_TO_TIMESTAMP_NTZ(
             product_json:last_modified_date::STRING
@@ -49,16 +47,38 @@ prepared AS (
 
         LOADED_AT,
         SOURCE_FILE,
+        ROW_NUMBER,
         BATCH_ID
 
     FROM unwrapped
 
+),
+
+latest_product_version AS (
+
+    SELECT *
+
+    FROM prepared
+
+    WHERE product_id IS NOT NULL
+      AND TRIM(product_id) <> ''
+
+    QUALIFY ROW_NUMBER() OVER (
+
+        PARTITION BY product_id
+
+        ORDER BY
+            last_modified_date DESC NULLS LAST,
+            LOADED_AT DESC,
+            SOURCE_FILE DESC,
+            ROW_NUMBER DESC
+
+    ) = 1
+
 )
 
 SELECT *
-FROM prepared
 
-WHERE product_id IS NOT NULL
-  AND TRIM(product_id) <> ''
+FROM latest_product_version
 
 {% endsnapshot %}
