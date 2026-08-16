@@ -49,6 +49,9 @@ models:
     gold:
       +schema: GOLD
 
+  elementary:
+    +schema: ELEMENTARY
+
 snapshots:
   capstone:
     +target_schema: SNAPSHOTS
