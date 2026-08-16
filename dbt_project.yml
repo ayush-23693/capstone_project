@@ -52,6 +52,10 @@ models:
       dimensions:
         +schema: GOLD
 
+    reporting:
+      +schema: REPORTING
+      +materialized: view
+
 snapshots:
   capstone:
     +target_schema: SNAPSHOTS
