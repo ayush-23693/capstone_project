@@ -1,10 +1,13 @@
+{{ config(
+    materialized='view'
+) }}
+
 WITH campaign_totals AS (
 
     SELECT
         fmp.CAMPAIGN_KEY,
-        dmc.CAMPAIGN_TYPE,
 
-        MAX(fmp.ROI) AS CAMPAIGN_FINAL_ROI,
+        dmc.CAMPAIGN_TYPE,
 
         SUM(
             fmp.TOTAL_SALES_INFLUENCED

@@ -4,8 +4,8 @@
 
 /*
 GRAIN: One row per campaign per date.
-ATTRIBUTION RULE:
-    A completed sale is attributed to the campaign whose
+   ATTRIBUTION RULE:
+       A completed sale is attributed to the campaign whose
     CAMPAIGN_KEY is carried on FACT_SALES from the source order.
 
     campaign attribution is already present
@@ -55,18 +55,13 @@ order_sales AS (
         CAMPAIGN_KEY,
         DATE_KEY,
 
-        MIN(
-            DATE_KEY
-        ) AS ORDER_DATE_KEY,
-
         SUM(
             TOTAL_SALES_AMOUNT
         ) AS ORDER_SALES_AMOUNT
 
     FROM {{ ref('fact_sales') }}
 
-    WHERE CAMPAIGN_KEY IS NOT NULL
-      AND CUSTOMER_KEY IS NOT NULL
+    WHERE CUSTOMER_KEY IS NOT NULL
       AND DATE_KEY IS NOT NULL
 
     GROUP BY
@@ -78,9 +73,10 @@ order_sales AS (
 ),
 
 
-
-   -- FIRST PURCHASE FOR EVERY CUSTOMER
-
+/*
+   TRUE CUSTOMER PURCHASE HISTORY 
+   (Includes campaign and non-campaign orders)
+ */
 
 customer_purchase_history AS (
 
@@ -105,8 +101,6 @@ customer_purchase_history AS (
 
 
    -- CAMPAIGN-ATTRIBUTED ORDERS
-
-
 
 campaign_orders AS (
 
@@ -139,14 +133,19 @@ campaign_orders AS (
     INNER JOIN {{ ref('dim_date') }} d
         ON oph.DATE_KEY = d.DATE_KEY
 
-    WHERE d.FULL_DATE >= TO_DATE(c.START_DATE)
+    WHERE oph.CAMPAIGN_KEY IS NOT NULL
+
+      AND d.FULL_DATE >= TO_DATE(c.START_DATE)
+
       AND d.FULL_DATE <= TO_DATE(c.END_DATE)
 
 ),
 
 
+/*
    -- DAILY SALES
-
+   One row per campaign × date.
+    */
 
 daily_sales AS (
 
@@ -168,6 +167,28 @@ daily_sales AS (
 ),
 
 
+   -- CAMPAIGN-ACQUIRED CUSTOMERS
+
+campaign_acquired_customers AS (
+
+    SELECT
+
+        CAMPAIGN_KEY,
+        CUSTOMER_KEY,
+
+        MIN(DATE_KEY) AS ACQUISITION_DATE_KEY
+
+    FROM campaign_orders
+
+    WHERE IS_FIRST_PURCHASE = TRUE
+
+    GROUP BY
+
+        CAMPAIGN_KEY,
+        CUSTOMER_KEY
+
+),
+
 
    -- DAILY NEW CUSTOMERS
 
@@ -177,39 +198,67 @@ daily_new_customers AS (
     SELECT
 
         CAMPAIGN_KEY,
-        DATE_KEY,
+        ACQUISITION_DATE_KEY AS DATE_KEY,
 
         COUNT(
             DISTINCT CUSTOMER_KEY
         ) AS NEW_CUSTOMERS_ACQUIRED
 
-    FROM campaign_orders
-
-    WHERE IS_FIRST_PURCHASE = TRUE
+    FROM campaign_acquired_customers
 
     GROUP BY
+
         CAMPAIGN_KEY,
-        DATE_KEY
+        ACQUISITION_DATE_KEY
 
 ),
 
 
-   -- CUMULATIVE CUSTOMER COUNTS
+/*
+  FIRST REPEAT PURCHASE FOR EACH ACQUIRED CUSTOMER
+ */
 
-campaign_customer_dates AS (
+campaign_customer_milestones AS (
 
-    SELECT DISTINCT
+    SELECT
 
-        CAMPAIGN_KEY,
-        CUSTOMER_KEY,
-        DATE_KEY,
-        IS_FIRST_PURCHASE,
-        IS_REPEAT_PURCHASE
+        ac.CAMPAIGN_KEY,
+        ac.CUSTOMER_KEY,
 
-    FROM campaign_orders
+        ac.ACQUISITION_DATE_KEY,
+
+        MIN(
+            CASE
+
+                WHEN co.DATE_KEY > ac.ACQUISITION_DATE_KEY
+
+                THEN co.DATE_KEY
+
+            END
+        ) AS FIRST_REPEAT_PURCHASE_DATE_KEY
+
+    FROM campaign_acquired_customers ac
+
+    LEFT JOIN campaign_orders co
+
+        ON ac.CAMPAIGN_KEY = co.CAMPAIGN_KEY
+
+       AND ac.CUSTOMER_KEY = co.CUSTOMER_KEY
+
+       AND co.DATE_KEY > ac.ACQUISITION_DATE_KEY
+
+    GROUP BY
+
+        ac.CAMPAIGN_KEY,
+        ac.CUSTOMER_KEY,
+        ac.ACQUISITION_DATE_KEY
 
 ),
 
+
+/*
+    CUMULATIVE CUSTOMER METRICS
+*/
 
 cumulative_customer_metrics AS (
 
@@ -218,40 +267,46 @@ cumulative_customer_metrics AS (
         cd.CAMPAIGN_KEY,
         cd.DATE_KEY,
 
-        /*
-         * Customers whose first campaign-attributed purchase
-         * has occurred on or before this date.
-         */
         COUNT(
             DISTINCT CASE
-                WHEN cd.IS_FIRST_PURCHASE = TRUE
-                THEN cd.CUSTOMER_KEY
+
+                WHEN ccm.ACQUISITION_DATE_KEY
+                     <= cd.DATE_KEY
+
+                THEN ccm.CUSTOMER_KEY
+
             END
         ) AS CUMULATIVE_FIRST_PURCHASE_CUSTOMERS,
 
-        /*
-         * Customers who have made a subsequent
-         * campaign-attributed purchase by this date.
-         */
         COUNT(
             DISTINCT CASE
-                WHEN cd.IS_REPEAT_PURCHASE = TRUE
-                THEN cd.CUSTOMER_KEY
+
+                WHEN ccm.FIRST_REPEAT_PURCHASE_DATE_KEY
+                     <= cd.DATE_KEY
+
+                THEN ccm.CUSTOMER_KEY
+
             END
         ) AS CUMULATIVE_REPEAT_CUSTOMERS
 
-    FROM campaign_customer_dates cd
+    FROM campaign_dates cd
+
+    LEFT JOIN campaign_customer_milestones ccm
+
+        ON cd.CAMPAIGN_KEY = ccm.CAMPAIGN_KEY
 
     GROUP BY
+
         cd.CAMPAIGN_KEY,
         cd.DATE_KEY
 
 ),
 
 
-
-   -- COMBINED TO REQUIRED CAMPAIGN × DATE GRAIN
-
+/*
+ COMBINED ALL DAILY METRICS
+       CAMPAIGN × DATE
+ */
 
 daily_metrics AS (
 
@@ -297,8 +352,31 @@ daily_metrics AS (
         ON cd.CAMPAIGN_KEY = ccm.CAMPAIGN_KEY
        AND cd.DATE_KEY = ccm.DATE_KEY
 
-)
+),
+  --  CUMULATIVE SALES
 
+final_metrics AS (
+
+    SELECT
+
+        *,
+
+        SUM(
+            TOTAL_SALES_INFLUENCED
+        ) OVER (
+
+            PARTITION BY CAMPAIGN_KEY
+
+            ORDER BY PERFORMANCE_DATE
+
+            ROWS BETWEEN UNBOUNDED PRECEDING
+                 AND CURRENT ROW
+
+        ) AS CUMULATIVE_SALES_INFLUENCED
+
+    FROM daily_metrics
+
+)
 
 
 --   FINAL FACT
@@ -318,6 +396,17 @@ SELECT
 
     NEW_CUSTOMERS_ACQUIRED,
 
+
+    /*
+       REPEAT PURCHASE RATE
+       
+       Numerator:
+           acquired customers who subsequently repeated
+
+       Denominator:
+           customers acquired by the campaign
+     */
+
     CASE
         WHEN CUMULATIVE_FIRST_PURCHASE_CUSTOMERS > 0
         THEN ROUND(
@@ -329,16 +418,18 @@ SELECT
         ELSE NULL
     END AS REPEAT_PURCHASE_RATE,
 
+
+    /*
+       ROI
+       Cumulative sales versus total campaign cost
+     */
+
     CASE
         WHEN CAMPAIGN_COST > 0
         THEN ROUND(
+
             (
-                SUM(TOTAL_SALES_INFLUENCED) OVER (
-                    PARTITION BY CAMPAIGN_KEY
-                    ORDER BY DATE_KEY
-                    ROWS BETWEEN UNBOUNDED PRECEDING
-                         AND CURRENT ROW
-                )
+                CUMULATIVE_SALES_INFLUENCED
                 - CAMPAIGN_COST
             )
             / CAMPAIGN_COST
@@ -348,4 +439,4 @@ SELECT
         ELSE NULL
     END AS ROI
 
-FROM daily_metrics
+FROM final_metrics

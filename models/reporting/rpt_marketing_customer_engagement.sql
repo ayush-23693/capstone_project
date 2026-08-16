@@ -2,42 +2,61 @@
     materialized='view'
 ) }}
 
-WITH campaign_engagement AS (
+WITH campaign_metrics AS (
 
     SELECT
-        fmp.CAMPAIGN_KEY,
 
-        MAX(
-            fmp.NEW_CUSTOMERS_ACQUIRED
-        ) AS LAST_DAILY_NEW_CUSTOMERS,
+        CAMPAIGN_KEY,
 
         SUM(
-            fmp.NEW_CUSTOMERS_ACQUIRED
-        ) AS TOTAL_NEW_CUSTOMERS_ACQUIRED,
+            NEW_CUSTOMERS_ACQUIRED
+        ) AS TOTAL_NEW_CUSTOMERS_ACQUIRED
 
-        MAX_BY(
-            fmp.REPEAT_PURCHASE_RATE,
-            fmp.DATE_KEY
-        ) AS FINAL_REPEAT_PURCHASE_RATE
+    FROM {{ ref('fact_marketing_performance') }}
 
-    FROM {{ ref('fact_marketing_performance') }} fmp
+    GROUP BY CAMPAIGN_KEY
 
-    GROUP BY
-        fmp.CAMPAIGN_KEY
+),
+
+final_campaign_rate AS (
+
+    SELECT
+
+        CAMPAIGN_KEY,
+
+        REPEAT_PURCHASE_RATE AS FINAL_REPEAT_PURCHASE_RATE
+
+    FROM {{ ref('fact_marketing_performance') }}
+
+    QUALIFY ROW_NUMBER() OVER (
+
+        PARTITION BY CAMPAIGN_KEY
+
+        ORDER BY DATE_KEY DESC
+
+    ) = 1
 
 )
 
 SELECT
-    ce.CAMPAIGN_KEY,
+
+    cm.CAMPAIGN_KEY,
+
     dmc.CAMPAIGN_ID,
     dmc.CAMPAIGN_NAME,
     dmc.CAMPAIGN_TYPE,
     dmc.TARGET_AUDIENCE_SEGMENT,
 
-    ce.TOTAL_NEW_CUSTOMERS_ACQUIRED,
-    ce.FINAL_REPEAT_PURCHASE_RATE
+    cm.TOTAL_NEW_CUSTOMERS_ACQUIRED,
 
-FROM campaign_engagement ce
+    fcr.FINAL_REPEAT_PURCHASE_RATE
+
+FROM campaign_metrics cm
+
+INNER JOIN final_campaign_rate fcr
+
+    ON cm.CAMPAIGN_KEY = fcr.CAMPAIGN_KEY
 
 INNER JOIN {{ ref('dim_marketing_campaign') }} dmc
-    ON ce.CAMPAIGN_KEY = dmc.CAMPAIGN_KEY
+
+    ON cm.CAMPAIGN_KEY = dmc.CAMPAIGN_KEY
