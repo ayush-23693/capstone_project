@@ -1,0 +1,102 @@
+version: 2
+
+models:
+
+
+  - name: dim_product
+    description: "Grain: one row per product"
+    columns:
+      - name: product_key
+        description: "Surrogate key"
+        tests:
+          - not_null
+          - unique
+
+      - name: product_id
+        description: "Natural key"
+        tests:
+          - not_null
+          - unique
+
+
+
+  - name: dim_supplier
+    description: "Grain: one row per supplier"
+    columns:
+      - name: supplier_key
+        description: "Surrogate key" 
+        tests:
+          - not_null
+          - unique
+
+      - name: supplier_id
+        description: "Natural key"
+        tests:
+          - not_null
+          - unique
+
+
+
+  - name: dim_store
+    description: "Grain: one row per store"
+    columns:
+      - name: store_key
+        description: "Surrogate key"
+        tests:
+          - not_null
+          - unique
+
+      - name: store_id
+        description: "Natural key"
+        tests:
+          - not_null
+          - unique
+
+      - name: size_category
+        description: "Store size category derived from square footage"
+        tests:
+          - accepted_values:
+              values:
+                - Small
+                - Medium
+                - Large
+
+
+
+
+  - name: dim_date
+    description: >
+      Complete and gap-free calendar dimension generated from
+      a dbt date spine covering 2024-04-01 through 2024-09-27.
+
+    columns:
+      - name: date_key
+        description: "Surrogate key, generated from a dbt date spine"
+        tests:
+          - not_null
+          - unique
+
+      - name: full_date
+        description: "Calendar date"
+        tests:
+          - not_null
+          - unique
+
+  
+
+
+  - name: dim_marketing_campaign
+    description: "Marketing campaign dimension. One row per campaign."
+
+    columns:
+      - name: campaign_key
+        description: "Surrogate key"
+        tests:
+          - not_null
+          - unique
+
+      - name: campaign_id
+        description: "Natural key"
+        tests:
+          - not_null
+          - unique
