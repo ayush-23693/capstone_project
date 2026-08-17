@@ -47,7 +47,14 @@ models:
       +schema: SILVER
 
     gold:
-      +schema: GOLD
+      facts:
+        +schema: GOLD
+      dimensions:
+        +schema: GOLD
+
+    reporting:
+      +schema: REPORTING
+      +materialized: view
 
   elementary:
     +schema: ELEMENTARY

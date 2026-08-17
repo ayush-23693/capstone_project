@@ -1,0 +1,159 @@
+version: 2
+
+models:
+
+  - name: fact_sales
+    description: >
+      Sales transaction fact at order-item grain.
+      One row represents one order line item.
+
+    columns:
+      - name: sales_key
+        description: "Surrogate key generated from order_id and order_item_number"
+        tests:
+          - not_null
+          - unique
+
+      - name: order_id
+        description: "Business identifier of the customer order"
+        tests:
+          - not_null
+
+      - name: order_item_number
+        description: "Line-item number within the order"
+        tests:
+          - not_null
+
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+
+
+      - name: product_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_key
+
+      - name: store_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_store')
+              field: store_key
+
+      - name: campaign_key
+        tests:
+          - relationships:
+              to: ref('dim_marketing_campaign')
+              field: campaign_key
+
+
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+
+
+
+
+
+  - name: fact_inventory
+    description: >
+      Periodic inventory snapshot at product-store-date grain.
+      Beginning and ending inventory are derived from consecutive
+      product snapshots and allocated to stores using the defined
+      analytical allocation rule. Purchased quantity is the
+      inferred inventory delta.
+
+
+    columns:
+      - name: inventory_key
+        description: "Surrogate key generated from product_id, store_id and snapshot_date"
+        tests:
+          - not_null
+          - unique
+
+      - name: product_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_key
+
+      - name: store_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_store')
+              field: store_key
+
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+
+      - name: supplier_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_supplier')
+              field: supplier_key
+
+
+      - name: product_id
+        description: "Product business identifier"
+        tests:
+          - not_null
+
+      - name: store_id
+        description: "Store business identifier used for the analytical store allocation"
+        tests:
+          - not_null
+
+      - name: snapshot_date
+        description: "Inventory position date"
+        tests:
+          - not_null
+
+  
+
+
+
+
+  - name: fact_marketing_performance
+    description: >
+      Marketing performance fact at campaign-date grain.
+      Contains daily campaign-influenced sales, newly acquired
+      customers, cumulative repeat purchase rate, and cumulative
+      ROI.
+
+    columns:
+
+      - name: marketing_performance_key
+        description: "Surrogate key generated from campaign_key and date_key"
+        tests:
+          - not_null
+          - unique
+
+      - name: campaign_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_marketing_campaign')
+              field: campaign_key
+
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
