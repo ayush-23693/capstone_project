@@ -40,20 +40,20 @@ models:
 
     staging:
       bronze:
-        +schema: BRONZE
+        +schema: "{{ env_var('DBT_BRONZE_SCHEMA')}}"
         +materialized: incremental
 
     silver:
-      +schema: SILVER
+      +schema: "{{ env_var('DBT_SILVER_SCHEMA')}}"
 
     gold:
       facts:
-        +schema: GOLD
+        +schema: "{{ env_var('DBT_GOLD_SCHEMA')}}"
       dimensions:
-        +schema: GOLD
+        +schema: "{{ env_var('DBT_GOLD_SCHEMA')}}"
 
     reporting:
-      +schema: REPORTING
+      +schema: "{{ env_var('DBT_REPORTING_SCHEMA')}}"
       +materialized: view
 
   elementary:
